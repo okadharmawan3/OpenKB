@@ -47,7 +47,15 @@ def test_reasoning_effort_is_forwarded_verbatim():
     assert resolve_llm_params({"reasoning_effort": "xhigh"}).reasoning_effort == "xhigh"
 
 
-@pytest.mark.parametrize("bad", ["", "   ", 3, True, ["high"]])
+def test_reasoning_effort_mapping_is_forwarded_verbatim():
+    # The mapping form reaches the Responses API intact through LiteLLM's
+    # openai/responses/* bridge, which drops effort strings it doesn't know.
+    params = resolve_llm_params({"reasoning_effort": {"effort": "max"}})
+    assert params.reasoning_effort == {"effort": "max"}
+    assert params.completion_kwargs()["reasoning_effort"] == {"effort": "max"}
+
+
+@pytest.mark.parametrize("bad", ["", "   ", 3, True, ["high"], {"summary": "auto"}, {"effort": ""}])
 def test_invalid_reasoning_effort_is_ignored_with_warning(bad, caplog):
     with caplog.at_level(logging.WARNING, logger="openkb.llm_params"):
         assert resolve_llm_params({"reasoning_effort": bad}).reasoning_effort is None
@@ -107,6 +115,17 @@ def test_litellm_keeps_reasoning_effort_and_omits_temperature_for_unmapped_model
     sent = get_optional_params(model="gpt-6-luna", custom_llm_provider="openai", **kwargs)
     assert sent.get("reasoning_effort") == "max"
     assert "temperature" not in sent
+
+
+def test_litellm_responses_bridge_forwards_effort_mapping():
+    """Pins why the mapping form is accepted: LiteLLM's Responses-API bridge
+    maps a mapping straight to ``reasoning`` (a plain ``"max"`` is dropped)."""
+    from litellm.completion_extras.litellm_responses_transformation.transformation import (
+        LiteLLMResponsesTransformationHandler,
+    )
+
+    reasoning = LiteLLMResponsesTransformationHandler()._map_reasoning_effort({"effort": "max"})
+    assert reasoning["effort"] == "max"
 
 
 # --- compiler call sites --------------------------------------------------------

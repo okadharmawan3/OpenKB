@@ -19,9 +19,11 @@ pageindex_threshold: 20          # PDF pages threshold for PageIndex
 # parallel_tool_calls: null
 
 # Optional: reasoning effort, sent on every LLM call (compile, PageIndex
-# indexing, and the query/chat/lint/skill agents). Passed through as-is, so the
-# valid values depend on the model (e.g. the top level is `xhigh` for gpt-5.4,
-# `max` for gpt-6-luna). Omit to use the model's default.
+# indexing, and the query/chat/lint/skill agents). Passed through as-is; the
+# provider rejects values the model doesn't support. Omit to use the model's
+# default. A mapping is passed through as-is too: use it for levels LiteLLM's
+# Responses-API bridge (model: openai/responses/<model>) doesn't know yet,
+# e.g. `reasoning_effort: {effort: max}`.
 # reasoning_effort: high
 
 # Optional: sampling temperature for every LLM call. Omit to keep each

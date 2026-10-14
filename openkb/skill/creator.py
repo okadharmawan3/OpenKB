@@ -21,6 +21,7 @@ from agents import Agent, Runner, ToolOutputImage, ToolOutputText, function_tool
 from agents.model_settings import ModelSettings
 
 from openkb.config import LlmCredentialBundle, resolve_model_settings
+from openkb.llm_params import agent_settings
 from openkb.prompts import load_prompt
 from openkb.schema import get_agents_md
 from openkb.skill import skill_dir
@@ -162,7 +163,7 @@ def build_skill_create_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else True
             ),
             "extra_headers": bundle.extra_headers or None,
-            "extra_args": {"timeout": bundle.timeout} if bundle.timeout is not None else None,
+            **agent_settings(bundle.llm_params, bundle.timeout),
         }
     else:
         model_settings = resolve_model_settings(default_parallel_tool_calls=True)

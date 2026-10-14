@@ -86,6 +86,17 @@ pageindex_threshold: 20          # PDF pages threshold for PageIndex
 #           parallel_tool_calls is sent at all (any value). See #175.
 # parallel_tool_calls: null
 
+# Optional: reasoning effort, sent on every LLM call (compile, PageIndex
+# indexing, and the query/chat/lint/skill agents). Passed through as-is, so the
+# valid values depend on the model (e.g. the top level is `xhigh` for gpt-5.4,
+# `max` for gpt-6-luna). Omit to use the model's default.
+# reasoning_effort: high
+
+# Optional: sampling temperature for every LLM call. Omit to keep each
+# library's default (PageIndex indexes at 0). `null` never sends a temperature
+# — needed for models that reject the parameter.
+# temperature: null
+
 # Optional: override the entity-type vocabulary used for entity pages.
 # Omit this key to use the default 7 types
 # (person, organization, place, product, work, event, other).
@@ -113,6 +124,8 @@ pageindex_threshold: 20          # PDF pages threshold for PageIndex
 | `pageindex_threshold` | `20` | PDFs with this many pages **or more** take the long-doc (PageIndex) path; shorter ones go through the short-doc path. See [`pageindex-cloud/`](../pageindex-cloud/). |
 | `concurrency` | `null` | Caps concurrent LLM calls OpenKB makes during ingest — both PageIndex's indexing of a long document and OpenKB's own concept/entity compilation. The two never run at once for the same document, so one setting covers both. Lower it if you hit provider rate limits or "too many open files" on large PDFs. `null` lets each stage apply its own default. |
 | `parallel_tool_calls` | unset | Whether the LLM agents (query, chat, lint, skill) may call tools in parallel. Unset keeps OpenKB's per-agent defaults; `true`/`false` force allow/sequential for every agent; `null` omits the setting (provider default). **Amazon Bedrock needs `null`** (see below). |
+| `reasoning_effort` | unset | Reasoning effort sent on every LLM call: wiki compile, PageIndex indexing, and the query/chat/lint/skill agents. Forwarded as-is, so any value the model accepts works (the top level is `xhigh` for gpt-5.4, `max` for gpt-6-luna). Unset uses the model's default. |
+| `temperature` | unset | Sampling temperature for every LLM call. Unset keeps each library's default (PageIndex indexes at `0`). `null` never sends a temperature — use it for models that reject the parameter. |
 | `entity_types` | 7 defaults | Custom vocabulary for entity pages. `other` is always kept. |
 | `litellm:` | – | A pass-through block for LiteLLM. See below. |
 

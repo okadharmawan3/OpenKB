@@ -9,6 +9,7 @@ from agents.model_settings import ModelSettings
 
 from openkb.agent.tools import list_wiki_files, read_wiki_file
 from openkb.config import LlmCredentialBundle, resolve_model_settings
+from openkb.llm_params import agent_settings
 from openkb.schema import get_agents_md
 
 MAX_TURNS = 50
@@ -88,7 +89,7 @@ def build_lint_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else None
             ),
             "extra_headers": bundle.extra_headers or None,
-            "extra_args": {"timeout": bundle.timeout} if bundle.timeout is not None else None,
+            **agent_settings(bundle.llm_params, bundle.timeout),
         }
     else:
         model_settings = resolve_model_settings(default_parallel_tool_calls=None)

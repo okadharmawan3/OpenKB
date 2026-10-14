@@ -37,6 +37,7 @@ from openkb.config import (
     resolve_entity_types,
 )
 from openkb.lint import list_existing_wiki_targets, strip_ghost_wikilinks
+from openkb.llm_params import get_llm_params
 from openkb.locks import atomic_write_text
 from openkb.schema import INDEX_SEED, get_agents_md
 
@@ -414,6 +415,9 @@ def _llm_call(
     timeout = bundle.timeout if bundle is not None else get_timeout()
     if timeout is not None:
         kwargs.setdefault("timeout", timeout)
+    llm_params = bundle.llm_params if bundle is not None else get_llm_params()
+    for key, value in llm_params.completion_kwargs().items():
+        kwargs.setdefault(key, value)
     if bundle is not None:
         kwargs.setdefault("api_key", bundle.api_key)
         kwargs.setdefault("base_url", bundle.base_url)
@@ -457,6 +461,9 @@ async def _llm_call_async(
     timeout = bundle.timeout if bundle is not None else get_timeout()
     if timeout is not None:
         kwargs.setdefault("timeout", timeout)
+    llm_params = bundle.llm_params if bundle is not None else get_llm_params()
+    for key, value in llm_params.completion_kwargs().items():
+        kwargs.setdefault(key, value)
     if bundle is not None:
         kwargs.setdefault("api_key", bundle.api_key)
         kwargs.setdefault("base_url", bundle.base_url)

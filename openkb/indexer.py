@@ -12,6 +12,7 @@ from typing import Any
 from pageindex import IndexConfig, PageIndexClient
 
 from openkb.config import resolve_concurrency, resolve_effective_config
+from openkb.llm_params import resolve_llm_params
 from openkb.tree_renderer import render_summary_md
 
 logger = logging.getLogger(__name__)
@@ -158,10 +159,12 @@ def _build_index_config(config: dict[str, Any]) -> IndexConfig:
 
     Forwards the KB's ``concurrency`` setting to PageIndex, which caps how many
     indexing LLM calls run at once (guarding against "too many open files" fd
-    exhaustion on large documents). The value is only passed when set *and* the
-    installed PageIndex's ``IndexConfig`` declares the field, so OpenKB keeps
-    working against a pinned PageIndex that predates it (``IndexConfig``
-    forbids unknown kwargs).
+    exhaustion on large documents), and its ``reasoning_effort`` / ``temperature``
+    as per-call LiteLLM kwargs (``temperature: null`` drops PageIndex's built-in
+    ``temperature=0``, which some reasoning models reject). Each value is only
+    passed when set *and* the installed PageIndex's ``IndexConfig`` declares the
+    field, so OpenKB keeps working against a pinned PageIndex that predates it
+    (``IndexConfig`` forbids unknown kwargs).
     """
     kwargs: dict[str, Any] = {
         "if_add_node_text": True,
@@ -176,6 +179,16 @@ def _build_index_config(config: dict[str, Any]) -> IndexConfig:
             logger.warning(
                 "config: 'concurrency' is set but the installed PageIndex "
                 "version does not support it yet — ignoring it."
+            )
+    llm_params = resolve_llm_params(config).completion_kwargs()
+    if llm_params:
+        if "llm_params" in IndexConfig.model_fields:
+            kwargs["llm_params"] = llm_params
+        else:
+            logger.warning(
+                "config: 'reasoning_effort' / 'temperature' is set but the installed "
+                "PageIndex version does not support per-call LLM params — ignoring it "
+                "for indexing."
             )
     return IndexConfig(**kwargs)
 

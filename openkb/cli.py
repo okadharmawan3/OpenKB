@@ -62,6 +62,7 @@ from openkb.config import (
     set_timeout,
     resolve_per_request_overrides,
 )
+from openkb.llm_params import LlmParams, resolve_llm_params, set_llm_params
 from openkb.add_coordinator import _cleanup_staging_dirs
 from openkb.converter import (
     _registry_path,
@@ -178,6 +179,7 @@ def _setup_llm_key(kb_dir: Path | None = None) -> None:
     timeout: float | None = None
     parallel_tool_calls: bool | None = None
     parallel_tool_calls_explicit = False
+    llm_params = LlmParams()
     litellm_settings: dict = {}
     if kb_dir is not None:
         # Resolve model the same way the command bodies do (DEFAULT -> global.yaml
@@ -191,9 +193,11 @@ def _setup_llm_key(kb_dir: Path | None = None) -> None:
         provider = _extract_provider(str(model))
         extra_headers, timeout, litellm_settings = resolve_per_request_overrides(config)
         parallel_tool_calls, parallel_tool_calls_explicit = resolve_parallel_tool_calls(config)
+        llm_params = resolve_llm_params(config)
     set_extra_headers(extra_headers)
     set_timeout(timeout)
     set_parallel_tool_calls(parallel_tool_calls, parallel_tool_calls_explicit)
+    set_llm_params(llm_params)
     _apply_litellm_settings(litellm_settings)
 
     if not api_key:

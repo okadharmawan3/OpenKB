@@ -15,6 +15,7 @@ from openkb.agent.tools import (
     write_kb_file,
 )
 from openkb.config import LlmCredentialBundle, resolve_model_settings
+from openkb.llm_params import agent_settings
 from openkb.schema import get_agents_md
 
 MAX_TURNS = 50
@@ -109,7 +110,7 @@ def build_query_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else False
             ),
             "extra_headers": bundle.extra_headers or None,
-            "extra_args": {"timeout": bundle.timeout} if bundle.timeout is not None else None,
+            **agent_settings(bundle.llm_params, bundle.timeout),
         }
     else:
         model_settings = resolve_model_settings()

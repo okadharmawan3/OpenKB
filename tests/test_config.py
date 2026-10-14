@@ -98,16 +98,19 @@ def test_resolve_model_settings_uses_own_default_when_unset():
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": False,  # the function's own default
+        "temperature": None,
     }
     assert resolve_model_settings(default_parallel_tool_calls=None) == {
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": None,
+        "temperature": None,
     }
     assert resolve_model_settings(default_parallel_tool_calls=True) == {
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": True,
+        "temperature": None,
     }
 
 
@@ -123,6 +126,7 @@ def test_resolve_model_settings_explicit_value_overrides_every_default():
             "extra_headers": {"X-A": "1"},
             "extra_args": {"timeout": 1200.0},
             "parallel_tool_calls": None,
+            "temperature": None,
         }
 
     set_parallel_tool_calls(True, True)  # explicit true: allow parallel, for everyone

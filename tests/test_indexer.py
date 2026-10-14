@@ -94,6 +94,26 @@ class TestBuildIndexConfig:
             _build_index_config({"concurrency": 8})
         assert caplog.text == ""
 
+    def test_forwards_llm_params_to_installed_pageindex(self):
+        # The pinned PageIndex declares IndexConfig.llm_params; temperature=None
+        # overrides its built-in temperature=0 so LiteLLM omits the parameter.
+        cfg = _build_index_config({"reasoning_effort": "max", "temperature": None})
+        assert cfg.llm_params == {
+            "reasoning_effort": "max",
+            "allowed_openai_params": ["reasoning_effort"],
+            "temperature": None,
+        }
+
+    def test_llm_params_left_to_pageindex_default_when_unset(self):
+        assert _build_index_config({}).llm_params is None
+
+    def test_warns_when_llm_params_configured_but_unsupported(self, monkeypatch, caplog):
+        monkeypatch.setattr("openkb.indexer.IndexConfig", _FakeIndexConfigWithoutConcurrency)
+        with caplog.at_level(logging.WARNING, logger="openkb.indexer"):
+            cfg = _build_index_config({"reasoning_effort": "max"})
+        assert not hasattr(cfg, "llm_params")
+        assert "reasoning_effort" in caplog.text
+
 
 class TestNormalizePageContent:
     def test_normalizes_pageindex_dicts(self):

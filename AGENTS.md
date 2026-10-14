@@ -18,6 +18,7 @@ humans steer, agents execute. Optimize changes for agent legibility.
 ## Module map (openkb/)
 - `cli.py` — Click CLI entry point & command wiring *(large; see tech-debt)*.
 - `config.py` — config loading/validation (LiteLLM passthrough, env).
+- `llm_params.py` — `reasoning_effort` / `temperature` config → per-call LLM kwargs.
 - `converter.py` — document → markdown conversion (markitdown).
 - `url_ingest.py` — fetch & ingest URLs (trafilatura).
 - `images.py` — figure/image extraction & handling.

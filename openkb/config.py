@@ -11,6 +11,7 @@ from typing import Any, Iterator
 
 import yaml
 
+from openkb.llm_params import LlmParams, agent_settings, get_llm_params, resolve_llm_params
 from openkb.locks import atomic_write_text, flock, funlock
 
 logger = logging.getLogger(__name__)
@@ -348,13 +349,6 @@ def get_timeout() -> float | None:
     return _runtime_timeout
 
 
-def get_timeout_extra_args() -> dict[str, float] | None:
-    """Timeout as Agents-SDK ``ModelSettings.extra_args`` (it has no ``timeout``
-    field), or ``None``. The LiteLLM provider forwards it to the completion call.
-    """
-    return {"timeout": _runtime_timeout} if _runtime_timeout is not None else None
-
-
 # Process-wide agent ``parallel_tool_calls`` as ``(value, was_explicit)``, set
 # from config by the CLI and read when building agents. ``(None, False)`` = not
 # configured, so each agent falls back to its own default (resolve_model_settings).
@@ -386,8 +380,8 @@ def resolve_model_settings(*, default_parallel_tool_calls: bool | None = False) 
     parallel_tool_calls = value if was_explicit else default_parallel_tool_calls
     return {
         "extra_headers": get_extra_headers() or None,
-        "extra_args": get_timeout_extra_args(),
         "parallel_tool_calls": parallel_tool_calls,
+        **agent_settings(get_llm_params(), get_timeout()),
     }
 
 
@@ -408,6 +402,7 @@ class LlmCredentialBundle:
     timeout: float | None = None
     parallel_tool_calls: bool | None = None
     parallel_tool_calls_explicit: bool = False
+    llm_params: LlmParams = field(default_factory=LlmParams)
 
 
 def resolve_credential_bundle(kb_dir: Path) -> LlmCredentialBundle:
@@ -416,7 +411,8 @@ def resolve_credential_bundle(kb_dir: Path) -> LlmCredentialBundle:
     Resolves ``LLM_API_KEY`` / ``OPENAI_API_BASE`` with per-KB precedence — the
     KB's own ``.env`` first, then the process environment, then the global
     ``~/.config/openkb/.env`` — and reads the KB's ``config.yaml`` for
-    ``extra_headers`` / ``timeout`` / ``litellm``. This honors the same sources
+    ``extra_headers`` / ``timeout`` / ``litellm`` / ``reasoning_effort`` /
+    ``temperature``. This honors the same sources
     as ``cli._setup_llm_key`` (so a server configured via a process env var or
     the global ``.env`` keeps working) but is side-effect-free: ``os.environ``
     is never written, so concurrent requests for different KBs cannot see each
@@ -448,6 +444,7 @@ def resolve_credential_bundle(kb_dir: Path) -> LlmCredentialBundle:
     timeout: float | None = None
     parallel_tool_calls: bool | None = None
     parallel_tool_calls_explicit = False
+    llm_params = LlmParams()
     config_path = kb_dir / ".openkb" / "config.yaml"
     if config_path.exists():
         config = load_config(config_path)
@@ -457,6 +454,7 @@ def resolve_credential_bundle(kb_dir: Path) -> LlmCredentialBundle:
         # server runs multiple KBs in one process, so they cannot be isolated.
         extra_headers, timeout, _ = resolve_per_request_overrides(config)
         parallel_tool_calls, parallel_tool_calls_explicit = resolve_parallel_tool_calls(config)
+        llm_params = resolve_llm_params(config)
 
     return LlmCredentialBundle(
         api_key=api_key,
@@ -465,6 +463,7 @@ def resolve_credential_bundle(kb_dir: Path) -> LlmCredentialBundle:
         timeout=timeout,
         parallel_tool_calls=parallel_tool_calls,
         parallel_tool_calls_explicit=parallel_tool_calls_explicit,
+        llm_params=llm_params,
     )
 
 

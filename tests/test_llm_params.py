@@ -32,6 +32,10 @@ from openkb.llm_params import (
 )
 
 MAX_EFFORT = {"reasoning_effort": "max", "allowed_openai_params": ["reasoning_effort"]}
+# A model LiteLLM doesn't map as a reasoning model (needs allowed_openai_params),
+# and long-mapped ones it translates itself (must NOT get the flag).
+UNMAPPED = "openai/gpt-unmapped-test-model"
+MAPPED = ("gpt-5.4", "anthropic/claude-sonnet-4-5", "gemini/gemini-2.5-pro")
 
 
 # --- resolve_llm_params -------------------------------------------------------
@@ -52,7 +56,7 @@ def test_reasoning_effort_mapping_is_forwarded_verbatim():
     # openai/responses/* bridge, which drops effort strings it doesn't know.
     params = resolve_llm_params({"reasoning_effort": {"effort": "max"}})
     assert params.reasoning_effort == {"effort": "max"}
-    assert params.completion_kwargs()["reasoning_effort"] == {"effort": "max"}
+    assert params.completion_kwargs(UNMAPPED)["reasoning_effort"] == {"effort": "max"}
 
 
 @pytest.mark.parametrize("bad", ["", "   ", 3, True, ["high"], {"summary": "auto"}, {"effort": ""}])
@@ -87,17 +91,17 @@ def test_invalid_temperature_keeps_library_defaults(bad, caplog):
 
 
 def test_completion_kwargs():
-    assert LlmParams().completion_kwargs() == {}
-    assert LlmParams(reasoning_effort="max").completion_kwargs() == MAX_EFFORT
-    assert LlmParams(temperature_explicit=True).completion_kwargs() == {"temperature": None}
-    assert LlmParams(temperature=0.2, temperature_explicit=True).completion_kwargs() == {
+    assert LlmParams().completion_kwargs(UNMAPPED) == {}
+    assert LlmParams(reasoning_effort="max").completion_kwargs(UNMAPPED) == MAX_EFFORT
+    assert LlmParams(temperature_explicit=True).completion_kwargs(UNMAPPED) == {"temperature": None}
+    assert LlmParams(temperature=0.2, temperature_explicit=True).completion_kwargs(UNMAPPED) == {
         "temperature": 0.2
     }
 
 
 def test_agent_settings_merges_timeout_and_reasoning():
-    assert agent_settings(LlmParams(), None) == {"extra_args": None, "temperature": None}
-    assert agent_settings(LlmParams(reasoning_effort="max", temperature=0.5), 60.0) == {
+    assert agent_settings(LlmParams(), None, UNMAPPED) == {"extra_args": None, "temperature": None}
+    assert agent_settings(LlmParams(reasoning_effort="max", temperature=0.5), 60.0, UNMAPPED) == {
         "extra_args": {"timeout": 60.0, **MAX_EFFORT},
         "temperature": 0.5,
     }
@@ -111,7 +115,7 @@ def test_litellm_keeps_reasoning_effort_and_omits_temperature_for_unmapped_model
     from litellm.utils import get_optional_params
 
     kwargs = {"temperature": 0, "drop_params": True}  # PageIndex's built-in defaults
-    kwargs.update(LlmParams("max", None, True).completion_kwargs())
+    kwargs.update(LlmParams("max", None, True).completion_kwargs("openai/gpt-6-luna"))
     sent = get_optional_params(model="gpt-6-luna", custom_llm_provider="openai", **kwargs)
     assert sent.get("reasoning_effort") == "max"
     assert "temperature" not in sent
@@ -126,6 +130,23 @@ def test_litellm_responses_bridge_forwards_effort_mapping():
 
     reasoning = LiteLLMResponsesTransformationHandler()._map_reasoning_effort({"effort": "max"})
     assert reasoning["effort"] == "max"
+
+
+@pytest.mark.parametrize("model", MAPPED)
+def test_mapped_models_get_no_allowed_params_flag(model):
+    """LiteLLM translates effort itself for these (e.g. Claude -> output_config,
+    Gemini -> thinkingConfig); the flag would make it also send the raw field."""
+    assert LlmParams(reasoning_effort="high").completion_kwargs(model) == {
+        "reasoning_effort": "high"
+    }
+
+
+@pytest.mark.parametrize(
+    "model", ["openai/gpt-6-luna", "openai/responses/gpt-6-luna", "no-such-provider/x"]
+)
+def test_unmapped_or_unknown_models_keep_the_flag(model):
+    # Without the flag LiteLLM would drop the effort (e.g. `max` on gpt-6-luna).
+    assert LlmParams(reasoning_effort="max").completion_kwargs(model) == MAX_EFFORT
 
 
 # --- compiler call sites --------------------------------------------------------
@@ -145,7 +166,7 @@ def test_llm_call_forwards_configured_params():
     with patch(
         "openkb.agent.compiler.litellm.completion", return_value=_fake_response()
     ) as completion:
-        _llm_call("gpt-6-luna", [{"role": "user", "content": "hi"}], "step")
+        _llm_call(UNMAPPED, [{"role": "user", "content": "hi"}], "step")
     kwargs = completion.call_args.kwargs
     assert kwargs["reasoning_effort"] == "max"
     assert kwargs["allowed_openai_params"] == ["reasoning_effort"]
@@ -170,7 +191,7 @@ def test_llm_call_async_uses_bundle_not_process_stash():
         return_value=_fake_response(),
     ) as acompletion:
         asyncio.run(
-            _llm_call_async("gpt-6-luna", [{"role": "user", "content": "hi"}], "s", bundle=bundle)
+            _llm_call_async(UNMAPPED, [{"role": "user", "content": "hi"}], "s", bundle=bundle)
         )
     assert acompletion.call_args.kwargs["reasoning_effort"] == "max"
 
@@ -180,7 +201,7 @@ def test_explicit_call_kwarg_wins_over_config():
     with patch(
         "openkb.agent.compiler.litellm.completion", return_value=_fake_response()
     ) as completion:
-        _llm_call("gpt-6-luna", [{"role": "user", "content": "hi"}], "s", reasoning_effort="low")
+        _llm_call(UNMAPPED, [{"role": "user", "content": "hi"}], "s", reasoning_effort="low")
     assert completion.call_args.kwargs["reasoning_effort"] == "low"
 
 
@@ -190,7 +211,7 @@ def test_explicit_call_kwarg_wins_over_config():
 def test_resolve_model_settings_carries_params():
     set_timeout(1200.0)
     set_llm_params(LlmParams("max", 0.3, True))
-    settings = resolve_model_settings()
+    settings = resolve_model_settings(UNMAPPED)
     assert settings["extra_args"] == {"timeout": 1200.0, **MAX_EFFORT}
     assert settings["temperature"] == 0.3
 
@@ -199,7 +220,7 @@ def test_query_agent_reads_bundle_params(tmp_path):
     from openkb.agent.query import build_query_agent
 
     bundle = LlmCredentialBundle(llm_params=LlmParams(reasoning_effort="max"))
-    agent = build_query_agent(str(tmp_path), "gpt-6-luna", bundle=bundle)
+    agent = build_query_agent(str(tmp_path), UNMAPPED, bundle=bundle)
     assert agent.model_settings.extra_args == MAX_EFFORT
 
 
@@ -217,7 +238,7 @@ async def test_skill_graders_carry_params():
         return SimpleNamespace(final_output="NO-TRIGGER")
 
     with patch("openkb.skill.evaluator.Runner.run", new=AsyncMock(side_effect=fake_runner)):
-        await grade_one("desc", "q?", model="gpt-6-luna")
+        await grade_one("desc", "q?", model=UNMAPPED)
     assert captured["agent"].model_settings.extra_args == MAX_EFFORT
 
 

@@ -110,10 +110,10 @@ def build_query_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else False
             ),
             "extra_headers": bundle.extra_headers or None,
-            **agent_settings(bundle.llm_params, bundle.timeout),
+            **agent_settings(bundle.llm_params, bundle.timeout, model),
         }
     else:
-        model_settings = resolve_model_settings()
+        model_settings = resolve_model_settings(model)
 
     return Agent(
         name="wiki-query",

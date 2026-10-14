@@ -366,7 +366,9 @@ def get_parallel_tool_calls() -> tuple[bool | None, bool]:
     return _runtime_parallel_tool_calls
 
 
-def resolve_model_settings(*, default_parallel_tool_calls: bool | None = False) -> dict[str, Any]:
+def resolve_model_settings(
+    model: str, *, default_parallel_tool_calls: bool | None = False
+) -> dict[str, Any]:
     """Assemble the agents-SDK ``ModelSettings`` kwargs from the process-wide LLM
     runtime settings — the single place tool-using agent builders wire them in.
 
@@ -381,7 +383,7 @@ def resolve_model_settings(*, default_parallel_tool_calls: bool | None = False) 
     return {
         "extra_headers": get_extra_headers() or None,
         "parallel_tool_calls": parallel_tool_calls,
-        **agent_settings(get_llm_params(), get_timeout()),
+        **agent_settings(get_llm_params(), get_timeout(), model),
     }
 
 

@@ -163,10 +163,10 @@ def build_skill_create_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else True
             ),
             "extra_headers": bundle.extra_headers or None,
-            **agent_settings(bundle.llm_params, bundle.timeout),
+            **agent_settings(bundle.llm_params, bundle.timeout, model),
         }
     else:
-        model_settings = resolve_model_settings(default_parallel_tool_calls=True)
+        model_settings = resolve_model_settings(model, default_parallel_tool_calls=True)
 
     return Agent(
         name="skill-creator",

@@ -11,7 +11,7 @@ from typing import Any
 
 from pageindex import IndexConfig, PageIndexClient
 
-from openkb.config import resolve_concurrency, resolve_effective_config
+from openkb.config import DEFAULT_CONFIG, resolve_concurrency, resolve_effective_config
 from openkb.llm_params import resolve_llm_params
 from openkb.tree_renderer import render_summary_md
 
@@ -180,7 +180,8 @@ def _build_index_config(config: dict[str, Any]) -> IndexConfig:
                 "config: 'concurrency' is set but the installed PageIndex "
                 "version does not support it yet — ignoring it."
             )
-    llm_params = resolve_llm_params(config).completion_kwargs()
+    model = config.get("model", DEFAULT_CONFIG["model"])
+    llm_params = resolve_llm_params(config).completion_kwargs(model)
     if llm_params:
         if "llm_params" in IndexConfig.model_fields:
             kwargs["llm_params"] = llm_params

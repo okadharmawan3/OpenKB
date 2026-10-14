@@ -94,19 +94,19 @@ def test_resolve_model_settings_uses_own_default_when_unset():
     set_extra_headers({})
     set_timeout(None)
     set_parallel_tool_calls(None, False)
-    assert resolve_model_settings() == {
+    assert resolve_model_settings("gpt-4o-mini") == {
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": False,  # the function's own default
         "temperature": None,
     }
-    assert resolve_model_settings(default_parallel_tool_calls=None) == {
+    assert resolve_model_settings("gpt-4o-mini", default_parallel_tool_calls=None) == {
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": None,
         "temperature": None,
     }
-    assert resolve_model_settings(default_parallel_tool_calls=True) == {
+    assert resolve_model_settings("gpt-4o-mini", default_parallel_tool_calls=True) == {
         "extra_headers": None,
         "extra_args": None,
         "parallel_tool_calls": True,
@@ -122,7 +122,7 @@ def test_resolve_model_settings_explicit_value_overrides_every_default():
     set_timeout(1200.0)
     set_parallel_tool_calls(None, True)  # explicit null: omit, for everyone
     for default in (False, True, None):
-        assert resolve_model_settings(default_parallel_tool_calls=default) == {
+        assert resolve_model_settings("gpt-4o-mini", default_parallel_tool_calls=default) == {
             "extra_headers": {"X-A": "1"},
             "extra_args": {"timeout": 1200.0},
             "parallel_tool_calls": None,
@@ -132,7 +132,9 @@ def test_resolve_model_settings_explicit_value_overrides_every_default():
     set_parallel_tool_calls(True, True)  # explicit true: allow parallel, for everyone
     for default in (False, True, None):
         assert (
-            resolve_model_settings(default_parallel_tool_calls=default)["parallel_tool_calls"]
+            resolve_model_settings("gpt-4o-mini", default_parallel_tool_calls=default)[
+                "parallel_tool_calls"
+            ]
             is True
         )
 

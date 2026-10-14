@@ -89,10 +89,10 @@ def build_lint_agent(
                 bundle.parallel_tool_calls if bundle.parallel_tool_calls_explicit else None
             ),
             "extra_headers": bundle.extra_headers or None,
-            **agent_settings(bundle.llm_params, bundle.timeout),
+            **agent_settings(bundle.llm_params, bundle.timeout, model),
         }
     else:
-        model_settings = resolve_model_settings(default_parallel_tool_calls=None)
+        model_settings = resolve_model_settings(model, default_parallel_tool_calls=None)
 
     return Agent(
         name="wiki-linter",

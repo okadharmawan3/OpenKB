@@ -97,7 +97,9 @@ class TestBuildIndexConfig:
     def test_forwards_llm_params_to_installed_pageindex(self):
         # The pinned PageIndex declares IndexConfig.llm_params; temperature=None
         # overrides its built-in temperature=0 so LiteLLM omits the parameter.
-        cfg = _build_index_config({"reasoning_effort": "max", "temperature": None})
+        cfg = _build_index_config(
+            {"model": "openai/gpt-6-luna", "reasoning_effort": "max", "temperature": None}
+        )
         assert cfg.llm_params == {
             "reasoning_effort": "max",
             "allowed_openai_params": ["reasoning_effort"],

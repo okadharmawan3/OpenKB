@@ -238,7 +238,7 @@ async def generate_eval_set(
         model=f"litellm/{model}",
         model_settings=ModelSettings(
             extra_headers=get_extra_headers() or None,
-            **agent_settings(get_llm_params(), get_timeout()),
+            **agent_settings(get_llm_params(), get_timeout(), model),
         ),
     )
     try:
@@ -300,7 +300,7 @@ async def grade_one(
         model=f"litellm/{model}",
         model_settings=ModelSettings(
             extra_headers=get_extra_headers() or None,
-            **agent_settings(get_llm_params(), get_timeout()),
+            **agent_settings(get_llm_params(), get_timeout(), model),
         ),
     )
     try:
@@ -352,7 +352,7 @@ async def grade_coverage(
         model=f"litellm/{model}",
         model_settings=ModelSettings(
             extra_headers=get_extra_headers() or None,
-            **agent_settings(get_llm_params(), get_timeout()),
+            **agent_settings(get_llm_params(), get_timeout(), model),
         ),
     )
     try:

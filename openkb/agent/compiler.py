@@ -416,7 +416,7 @@ def _llm_call(
     if timeout is not None:
         kwargs.setdefault("timeout", timeout)
     llm_params = bundle.llm_params if bundle is not None else get_llm_params()
-    for key, value in llm_params.completion_kwargs().items():
+    for key, value in llm_params.completion_kwargs(model).items():
         kwargs.setdefault(key, value)
     if bundle is not None:
         kwargs.setdefault("api_key", bundle.api_key)
@@ -462,7 +462,7 @@ async def _llm_call_async(
     if timeout is not None:
         kwargs.setdefault("timeout", timeout)
     llm_params = bundle.llm_params if bundle is not None else get_llm_params()
-    for key, value in llm_params.completion_kwargs().items():
+    for key, value in llm_params.completion_kwargs(model).items():
         kwargs.setdefault(key, value)
     if bundle is not None:
         kwargs.setdefault("api_key", bundle.api_key)

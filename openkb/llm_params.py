@@ -10,6 +10,7 @@ carried per request on ``LlmCredentialBundle.llm_params`` for the REST server.
 
 from __future__ import annotations
 
+import functools
 import logging
 import math
 from dataclasses import dataclass
@@ -31,25 +32,42 @@ class LlmParams:
     temperature: float | None = None
     temperature_explicit: bool = False
 
-    def completion_kwargs(self) -> dict[str, Any]:
-        """Kwargs for ``litellm.completion`` / ``litellm.acompletion``."""
-        kwargs = self.reasoning_kwargs()
+    def completion_kwargs(self, model: str) -> dict[str, Any]:
+        """Kwargs for ``litellm.completion`` / ``litellm.acompletion`` on ``model``."""
+        kwargs = self.reasoning_kwargs(model)
         if self.temperature_explicit:
             kwargs["temperature"] = self.temperature  # None -> LiteLLM omits it
         return kwargs
 
-    def reasoning_kwargs(self) -> dict[str, Any]:
+    def reasoning_kwargs(self, model: str) -> dict[str, Any]:
         """The ``reasoning_effort`` kwargs alone (empty when unset)."""
         effort = self.reasoning_effort
         if effort is None:
             return {}
-        return {
-            "reasoning_effort": dict(effort) if isinstance(effort, dict) else effort,
+        kwargs: dict[str, Any] = {
+            "reasoning_effort": dict(effort) if isinstance(effort, dict) else effort
+        }
+        if not _litellm_maps_reasoning_effort(model):
             # LiteLLM drops (drop_params) or rejects reasoning_effort for models
             # it doesn't map as reasoning models (e.g. new families like gpt-6-*).
-            # Forward it as-is and let the provider validate the value.
-            "allowed_openai_params": ["reasoning_effort"],
-        }
+            # Forward it as-is and let the provider validate the value. Only for
+            # those models: for mapped ones (Claude, Gemini) LiteLLM translates
+            # the value to the provider's own field, and this flag would make it
+            # send the raw OpenAI field as well.
+            kwargs["allowed_openai_params"] = ["reasoning_effort"]
+        return kwargs
+
+
+@functools.lru_cache(maxsize=64)
+def _litellm_maps_reasoning_effort(model: str) -> bool:
+    """Whether LiteLLM itself forwards/translates ``reasoning_effort`` for ``model``."""
+    import litellm  # lazy: callers may set LiteLLM env vars before its import
+
+    try:
+        supported = litellm.get_supported_openai_params(model=model.removeprefix("litellm/"))
+    except Exception:  # unknown provider/model: treat as unmapped
+        return False
+    return "reasoning_effort" in (supported or [])
 
 
 def resolve_llm_params(config: dict) -> LlmParams:
@@ -102,15 +120,15 @@ def _resolve_effort(raw: Any) -> str | dict[str, Any] | None:
     return None
 
 
-def agent_settings(params: LlmParams, timeout: float | None) -> dict[str, Any]:
-    """``extra_args`` + ``temperature`` kwargs for an Agents-SDK ``ModelSettings``.
+def agent_settings(params: LlmParams, timeout: float | None, model: str) -> dict[str, Any]:
+    """``extra_args`` + ``temperature`` kwargs for an Agents-SDK ``ModelSettings`` on ``model``.
 
     ``ModelSettings`` has no ``timeout`` field, and its ``reasoning`` field only
     accepts OpenAI's effort values (up to ``xhigh``), so both travel in
     ``extra_args`` — the SDK's LiteLLM model forwards them to the completion call.
     """
     extra_args: dict[str, Any] = {"timeout": timeout} if timeout is not None else {}
-    extra_args.update(params.reasoning_kwargs())
+    extra_args.update(params.reasoning_kwargs(model))
     return {"extra_args": extra_args or None, "temperature": params.temperature}
 
 
